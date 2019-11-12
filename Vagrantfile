@@ -25,7 +25,18 @@ MACHINES = {
                         :dfile => './sata4.vdi',
                         :size => 250, # Megabytes
                         :port => 4
+                },
+                :sata5 => {
+                        :dfile => './sata5.vdi',
+                        :size => 250, # Megabytes
+                        :port => 5
+                },
+                :sata6 => {
+                        :dfile => './sata6.vdi',
+                        :size => 250, # Megabytes
+                        :port => 6
                 }
+
 
 	}
 
@@ -63,12 +74,38 @@ Vagrant.configure("2") do |config|
                      end
                   end
           end
- 	  box.vm.provision "shell", inline: <<-SHELL
+	  box.vm.provision "shell", inline: <<-SHELL
 	      mkdir -p ~root/.ssh
               cp ~vagrant/.ssh/auth* ~root/.ssh
 	      yum install -y mdadm smartmontools hdparm gdisk
-  	  SHELL
-
+		mdadm --zero-superblock --force /dev/sd{b,c,d,e,f,g}
+		mdadm --create --verbose /dev/md0 -l 10 -n 6 /dev/sd{b,c,d,e,f,g}
+		mkdir /etc/mdadm
+		touch /etc/mdadm/mdadm.conf
+		echo "DEVICE partitions" > /etc/mdadm/mdadm.conf
+		mdadm --detail --scan --verbose | awk '/ARRAY/ {print}' >> /etc/mdadm/mdadm.conf
+		mdadm /dev/md0 --fail /dev/sde
+		mdadm /dev/md0 --fail /dev/sdb
+		sleep 2
+		mdadm /dev/md0 --remove /dev/sdb
+		mdadm /dev/md0 --remove /dev/sde
+		mdadm /dev/md0 --add /dev/sdb
+		mdadm /dev/md0 --add /dev/sde
+		parted -s /dev/md0 mklabel gpt
+		parted /dev/md0 mkpart primary ext4 0% 20%
+		parted /dev/md0 mkpart primary ext4 20% 40%
+		parted /dev/md0 mkpart primary ext4 40% 60%
+		parted /dev/md0 mkpart primary ext4 60% 80%
+		parted /dev/md0 mkpart primary ext4 80% 100%
+		for i in $(seq 1 5); do sudo mkfs.ext4 /dev/md0p$i; done
+		mkdir -p /raid/part{1,2,3,4,5}
+		for i in $(seq 1 5); do mount /dev/md0p$i /raid/part$i; done
+		echo "/dev/md0p1      /raid/part1     ext4    defaults    1 2" >> /etc/fstab
+		echo "/dev/md0p2      /raid/part2     ext4    defaults    1 2" >> /etc/fstab
+		echo "/dev/md0p3      /raid/part3     ext4    defaults    1 2" >> /etc/fstab
+		echo "/dev/md0p4      /raid/part4     ext4    defaults    1 2" >> /etc/fstab
+		echo "/dev/md0p5      /raid/part5     ext4    defaults    1 2" >> /etc/fstab
+	SHELL
       end
   end
 end
