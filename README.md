@@ -26,11 +26,13 @@
                         :port => 6
 						
 ### собрать R0/R5/R10 на выбор
+собираю raid 10 из 6 дисков
 
 		mdadm --zero-superblock --force /dev/sd{b,c,d,e,f,g}
 		mdadm --create --verbose /dev/md0 -l 10 -n 6 /dev/sd{b,c,d,e,f,g}
 
 ### сломать/починить raid
+искуственно делаю ошибочными диски sde sdb
 
 		mdadm /dev/md0 --fail /dev/sde
 		mdadm /dev/md0 --fail /dev/sdb
@@ -41,6 +43,7 @@
 		mdadm /dev/md0 --add /dev/sde
 
 ### прописать собранный рейд в конф, чтобы рейд собирался при загрузке
+создаю папку и файл для mdadm
 
 		mkdir /etc/mdadm
 		touch /etc/mdadm/mdadm.conf
@@ -67,4 +70,3 @@
 ### доп. задание - Vagrantfile, который сразу собирает систему с подключенным рейдом
 
 в раздел "box.vm.provision "shell", inline:" vagrantfile добавляем приведенные выше строки по порядку
-
